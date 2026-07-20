@@ -39,8 +39,7 @@ npm run dev             # http://localhost:5173
 
 ## 1. Executive Summary
 
-**EventSphere Pro** is a proposed full-stack SaaS-style Event Management Platform designed as the third portfolio project for a developer building a Full-Stack + AI Engineer portfolio (alongside **AgentForge**, an AI/LLM SaaS, and **StockFlow**, a business ERP with inventory workflows).
-
+**EventSphere Pro** is a proposed full-stack SaaS-style Event Management Platform designed as the  portfolio project.
 The platform is envisioned as a complete event lifecycle system covering **discovery, booking, ticketing, payments, QR check-in, and analytics** — not a simple CRUD app, but a multi-role, production-grade product.
 
 > **Vision statement:** *"A complete event discovery, booking, ticketing, and management platform where organizers can create events, sell tickets, manage attendees, and analyze performance."*
@@ -241,12 +240,3 @@ As proposed in the original planning notes, the logical next step before writing
 This ensures development starts on a professional, structured foundation rather than ad hoc feature-building.
 
 ---
-
-## 12. Portfolio Positioning Summary
-
-Combined with AgentForge and StockFlow, EventSphere Pro completes a three-project portfolio that demonstrates:
-- AI/LLM engineering (AgentForge)
-- Business logic & workflow systems (StockFlow)
-- Consumer product engineering: payments, QR/real-time systems, multi-role SaaS architecture (EventSphere Pro)
-
-This range signals full-stack + product engineering capability rather than a single-domain (e.g., "frontend-only") skill set.
