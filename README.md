@@ -1,8 +1,6 @@
 # EventSphere Pro — Detailed Project Report
 
-## 0. Current Status (built, not just planned)
-
-The sections below are the original planning document and are kept as-is for historical context — parts of it (Next.js/TypeScript, MySQL, payments, QR scanning, analytics dashboards) describe the long-term vision and haven't been built yet. Here's what actually exists in this repo right now:
+## Here's what actually exists in this repo right now:
 
 **Backend** — `backend/` (Flask + PostgreSQL, not MySQL):
 - JWT auth with three roles (admin/organizer/attendee), bcrypt passwords, rate-limited login/register, httpOnly+CSRF-protected refresh cookie
