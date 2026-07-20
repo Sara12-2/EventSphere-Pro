@@ -1,5 +1,44 @@
 # EventSphere Pro — Detailed Project Report
 
+## 0. Current Status (built, not just planned)
+
+The sections below are the original planning document and are kept as-is for historical context — parts of it (Next.js/TypeScript, MySQL, payments, QR scanning, analytics dashboards) describe the long-term vision and haven't been built yet. Here's what actually exists in this repo right now:
+
+**Backend** — `backend/` (Flask + PostgreSQL, not MySQL):
+- JWT auth with three roles (admin/organizer/attendee), bcrypt passwords, rate-limited login/register, httpOnly+CSRF-protected refresh cookie
+- Events (organizer-owned, admin-approval gated before publishing) and bookings (seat-locked to prevent overbooking, each booking gets a `ticket_code`)
+- 11 passing pytest tests; Postgres migrations via Flask-Migrate
+- See `backend/README.md` for setup and API details
+
+**Frontend** — `frontend/` (Vite + React, not Next.js/TypeScript yet):
+- The full "Marquee & Stub" UI, wired to the real API — live event data, real login/register, real bookings
+- `EventSpherePro_Frontend.jsx` at the repo root is the original standalone draft this was built from; it's kept for reference and isn't wired to anything
+- See `frontend/README.md` for setup
+
+**Not built yet:** payments, QR-code scanning/check-in, email notifications, analytics dashboards, an organizer "my events" UI, and an admin UI (organizer approval + category management are API-only for now — see `backend/README.md`).
+
+### Quick start
+
+```bash
+# Backend (needs Docker for Postgres)
+cd backend
+python -m venv .venv && .venv/Scripts/activate
+pip install -r requirements.txt
+cp .env.example .env
+docker compose up -d
+flask db upgrade
+python seed.py
+python run.py          # http://localhost:5057
+
+# Frontend, in a second terminal
+cd frontend
+npm install
+cp .env.example .env
+npm run dev             # http://localhost:5173
+```
+
+---
+
 ## 1. Executive Summary
 
 **EventSphere Pro** is a proposed full-stack SaaS-style Event Management Platform designed as the third portfolio project for a developer building a Full-Stack + AI Engineer portfolio (alongside **AgentForge**, an AI/LLM SaaS, and **StockFlow**, a business ERP with inventory workflows).
