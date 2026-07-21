@@ -72,6 +72,16 @@ frontend/
 
 The backend must be running first — the Discover section, login/register, and booking flow all call it directly; there is no mock-data fallback. See [`../backend/README.md`](../backend/README.md).
 
+**Docker (whole stack, recommended):**
+
+```bash
+cp .env.example .env
+cd ..
+docker compose up -d --build   # http://localhost:5173, backend at :5057, db at :5432
+```
+
+**Native:**
+
 ```bash
 npm install
 cp .env.example .env   # points VITE_API_BASE_URL at the local backend (http://localhost:5057/api)
