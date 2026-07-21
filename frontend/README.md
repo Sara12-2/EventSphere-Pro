@@ -118,6 +118,10 @@ Drop files at the **exact paths and filenames** below (each folder also has its 
 | `public/media/roles/role-organizer.jpg` | Organizer role card photo | 1:1, ≥200×200 |
 | `public/media/roles/role-attendee.jpg` | Attendee role card photo | 1:1, ≥200×200 |
 | `public/media/tickets/checkin-moment.jpg` | Small overlap photo on the QR check-in section | ~4:3, ≥400×300 |
+| `public/media/categories/conferences.jpg` | Discover card header photo — Conferences | ~16:9, ≥800×450 |
+| `public/media/categories/concerts.jpg` | Discover card header photo — Concerts | ~16:9, ≥800×450 |
+| `public/media/categories/workshops.jpg` | Discover card header photo — Workshops | ~16:9, ≥800×450 |
+| `public/media/categories/weddings.jpg` | Discover card header photo — Weddings | ~16:9, ≥800×450 |
 
 All JPGs should be compressed for the web (under ~400KB each). No code changes are needed — just add the files at those paths and reload.
 

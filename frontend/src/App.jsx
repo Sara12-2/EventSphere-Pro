@@ -8,6 +8,7 @@ import {
   Menu, X, Heart, Printer, Info, AlertTriangle, Loader2,
   ChevronLeft, ChevronRight, Keyboard, LogIn, LogOut,
   Sparkles, Compass, Camera, Layers, Building2,
+  Mail, Lock, User, Eye, EyeOff, Globe, MessageCircle, ArrowUp,
 } from "lucide-react";
 import { useAuth } from "./auth/AuthContext";
 import { api, ApiError } from "./api/client";
@@ -56,6 +57,15 @@ const CATEGORY_IMAGE = {
   workshops: imgWorkshopRoom,
   weddings: imgMarqueeGardens,
 };
+// Drop a real photo at any of these paths (any format ending .jpg) to replace the
+// bundled illustration on the Discover event cards for that category — no code
+// changes needed, the card falls back to the illustration automatically if it's missing.
+const CATEGORY_PHOTO = {
+  conferences: "/media/categories/conferences.jpg",
+  concerts: "/media/categories/concerts.jpg",
+  workshops: "/media/categories/workshops.jpg",
+  weddings: "/media/categories/weddings.jpg",
+};
 
 function formatEventDate(iso) {
   const d = new Date(iso);
@@ -80,6 +90,7 @@ function adaptEvent(e) {
     seatsTotal: e.capacity,
     tone: CATEGORY_TONE[slug] || "gold",
     image: CATEGORY_IMAGE[slug] || imgMainStage,
+    photo: CATEGORY_PHOTO[slug] || CATEGORY_PHOTO.conferences,
   };
 }
 
@@ -205,8 +216,11 @@ function Styles() {
       @keyframes es-pop { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
       .es-pop { animation: es-pop 0.18s ease-out; }
 
-      @keyframes es-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-      .es-toast { animation: es-toast-in 0.2s ease-out; }
+      @keyframes es-toast-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      .es-toast { animation: es-toast-in 0.22s ease-out; }
+
+      @keyframes es-toast-bar { from { width: 100%; } to { width: 0%; } }
+      .es-toast-bar { animation: es-toast-bar 3.5s linear forwards; }
 
       @keyframes es-tooltip-in { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
       .es-tooltip { animation: es-tooltip-in 0.12s ease-out; }
@@ -219,7 +233,7 @@ function Styles() {
 
       @media (prefers-reduced-motion: reduce) {
         .es-marquee-track, .es-scanline, .es-skeleton, .es-pop, .es-toast, .es-tooltip,
-        .es-hero-slide, .es-ping { animation: none !important; }
+        .es-hero-slide, .es-ping, .es-toast-bar { animation: none !important; }
         .es-reveal { transition: none !important; opacity: 1 !important; transform: none !important; }
         .es-card-hover:hover { transform: none !important; }
       }
@@ -456,25 +470,35 @@ function Tooltip({ label, children }) {
 }
 
 /* ---------------------------------- Toasts ---------------------------------- */
-function ToastStack({ toasts }) {
+function ToastStack({ toasts, onDismiss }) {
   const iconFor = { success: CheckCircle2, error: AlertTriangle, info: Info };
   const colorFor = { success: PALETTE.teal, error: PALETTE.danger, info: PALETTE.gold };
   return (
     <div
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 w-72 max-w-[90vw]"
+      className="es-no-print fixed z-50 flex flex-col gap-2.5 w-[calc(100vw-2.5rem)] sm:w-80 bottom-5 left-5 right-5 sm:left-auto sm:right-5"
     >
       {toasts.map((t) => {
         const Icon = iconFor[t.type] || Info;
+        const accent = colorFor[t.type] || PALETTE.gold;
         return (
           <div
             key={t.id}
-            className="es-toast flex items-start gap-2.5 rounded-xl px-4 py-3 shadow-lg border"
-            style={{ backgroundColor: PALETTE.inkSoft, borderColor: PALETTE.lineDark }}
+            className="es-toast relative flex items-start gap-2.5 rounded-xl pl-4 pr-9 py-3 shadow-xl border overflow-hidden backdrop-blur"
+            style={{ backgroundColor: `${PALETTE.inkSoft}F0`, borderColor: PALETTE.lineDark, borderLeft: `3px solid ${accent}` }}
           >
-            <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: colorFor[t.type] }} />
-            <p className="text-sm" style={{ color: PALETTE.porcelain }}>{t.message}</p>
+            <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: accent }} />
+            <p className="text-sm leading-snug" style={{ color: PALETTE.porcelain }}>{t.message}</p>
+            <button
+              aria-label="Dismiss notification"
+              onClick={() => onDismiss(t.id)}
+              className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+              style={{ color: "#9DA0AC" }}
+            >
+              <X className="w-3 h-3" />
+            </button>
+            <span className="es-toast-bar absolute left-0 bottom-0 h-0.5" style={{ backgroundColor: accent }} />
           </div>
         );
       })}
@@ -706,10 +730,12 @@ function AuthForm({ mode, onSubmit, onSwitchMode, dark = true }) {
   const labelColor = dark ? "#B9BBC4" : PALETTE.slate;
   const fieldTextColor = dark ? PALETTE.porcelain : PALETTE.ink;
   const fieldBorderColor = dark ? PALETTE.lineDark : PALETTE.line;
+  const fieldBg = dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)";
   const [values, setValues] = useState({ name: "", email: "", password: "", role: "attendee" });
   const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const errors = useMemo(() => {
     const e = {};
@@ -727,24 +753,45 @@ function AuthForm({ mode, onSubmit, onSwitchMode, dark = true }) {
 
   const isValid = Object.keys(errors).length === 0;
 
-  function field(key, label, type = "text") {
+  function field(key, label, type, Icon) {
     const showError = touched[key] && errors[key];
+    const isPassword = key === "password";
+    const inputType = isPassword ? (showPassword ? "text" : "password") : type;
     return (
       <div className="mb-4">
         <label htmlFor={`au-${key}`} className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>
           {label}
         </label>
-        <input
-          id={`au-${key}`}
-          type={type}
-          value={values[key]}
-          onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
-          onBlur={() => setTouched((t) => ({ ...t, [key]: true }))}
-          aria-invalid={!!showError}
-          aria-describedby={showError ? `au-${key}-err` : undefined}
-          className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-          style={{ borderColor: showError ? PALETTE.danger : fieldBorderColor, color: fieldTextColor }}
-        />
+        <div className="relative">
+          <Icon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: labelColor }} />
+          <input
+            id={`au-${key}`}
+            type={inputType}
+            value={values[key]}
+            onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+            onBlur={() => setTouched((t) => ({ ...t, [key]: true }))}
+            aria-invalid={!!showError}
+            aria-describedby={showError ? `au-${key}-err` : undefined}
+            className="w-full rounded-lg pl-9 py-2.5 text-sm outline-none border transition-colors"
+            style={{
+              paddingRight: isPassword ? "2.25rem" : "0.75rem",
+              borderColor: showError ? PALETTE.danger : fieldBorderColor,
+              color: fieldTextColor,
+              backgroundColor: fieldBg,
+            }}
+          />
+          {isPassword && (
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: labelColor }}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
         {showError && (
           <p id={`au-${key}-err`} className="text-xs mt-1.5 flex items-center gap-1" style={{ color: PALETTE.danger }}>
             <AlertTriangle className="w-3 h-3" /> {errors[key]}
@@ -773,25 +820,40 @@ function AuthForm({ mode, onSubmit, onSwitchMode, dark = true }) {
       }}
       noValidate
     >
-      {isRegister && field("name", "Full name")}
-      {field("email", "Email", "email")}
-      {field("password", "Password", "password")}
-
       {isRegister && (
-        <div className="mb-4">
-          <label htmlFor="au-role" className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>I am signing up as</label>
-          <select
-            id="au-role"
-            value={values.role}
-            onChange={(e) => setValues((v) => ({ ...v, role: e.target.value }))}
-            className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-            style={{ borderColor: fieldBorderColor, color: fieldTextColor }}
-          >
-            <option value="attendee" style={{ color: PALETTE.ink }}>Attendee — book tickets</option>
-            <option value="organizer" style={{ color: PALETTE.ink }}>Organizer — create events</option>
-          </select>
+        <div className="mb-5">
+          <label className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>I am signing up as</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["attendee", Users, "Attendee", "Book tickets"],
+              ["organizer", CalendarCheck2, "Organizer", "Create events"],
+            ].map(([val, Icon, roleLabel, sub]) => {
+              const active = values.role === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setValues((v) => ({ ...v, role: val }))}
+                  aria-pressed={active}
+                  className="rounded-xl border p-3 text-left transition-colors"
+                  style={{
+                    borderColor: active ? PALETTE.gold : fieldBorderColor,
+                    backgroundColor: active ? `${PALETTE.gold}1A` : "transparent",
+                  }}
+                >
+                  <Icon className="w-4 h-4 mb-1.5" style={{ color: active ? PALETTE.gold : labelColor }} />
+                  <p className="text-sm font-semibold" style={{ color: fieldTextColor }}>{roleLabel}</p>
+                  <p className="text-[11px]" style={{ color: labelColor }}>{sub}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {isRegister && field("name", "Full name", "text", User)}
+      {field("email", "Email", "email", Mail)}
+      {field("password", "Password", "password", Lock)}
 
       {serverError && (
         <p className="text-xs mb-3 flex items-center gap-1" style={{ color: PALETTE.danger }}>
@@ -828,7 +890,7 @@ function AuthForm({ mode, onSubmit, onSwitchMode, dark = true }) {
 
 /* ---------------------------------- Event card ---------------------------------- */
 const EventCard = React.memo(function EventCard({ event, dark, isFavorite, onToggleFavorite, onBook, booking }) {
-  const { title, category, date, venue, price, seatsLeft, seatsTotal, tone, image } = event;
+  const { title, category, date, venue, price, seatsLeft, seatsTotal, tone, image, photo } = event;
   const pct = Math.round((seatsLeft / seatsTotal) * 100);
   const soldOut = seatsLeft <= 0;
   const accent = tone === "teal" ? PALETTE.teal : tone === "plum" ? PALETTE.plum : PALETTE.gold;
@@ -841,14 +903,14 @@ const EventCard = React.memo(function EventCard({ event, dark, isFavorite, onTog
       style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: dark ? PALETTE.inkSoft : "#fff" }}
     >
       <div className="relative h-36 w-full overflow-hidden">
-        {image && (
-          <img
-            src={image}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
+        <img
+          src={photo || image}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = image; }}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <div
           className="absolute inset-0"
           style={{ background: `linear-gradient(180deg, ${accent}33, ${PALETTE.ink}B3)` }}
@@ -1011,11 +1073,15 @@ export default function EventSpherePro() {
   const searchRef = useRef(null);
   const sentinelRef = useRef(null);
 
+  const removeToast = useCallback((id) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  }, []);
+
   const addToast = useCallback((type, message) => {
     const id = `${Date.now()}-${Math.random()}`;
     setToasts((t) => [...t, { id, type, message }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
-  }, []);
+    setTimeout(() => removeToast(id), 3500);
+  }, [removeToast]);
 
   const toggleFavorite = useCallback((event) => {
     setFavorites((prev) => {
@@ -1145,7 +1211,7 @@ export default function EventSpherePro() {
   return (
     <div className="es-root min-h-screen" style={{ backgroundColor: contentBg, color: contentText }}>
       <Styles />
-      <ToastStack toasts={toasts} />
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
 
       {/* Skip link for keyboard users */}
       <a
@@ -1278,12 +1344,12 @@ export default function EventSpherePro() {
 
       <main id="es-main">
         {/* ---------------- HERO ---------------- */}
-        <section className="pt-16 pb-20 px-5 sm:px-8 relative overflow-hidden transition-colors" style={{ backgroundColor: PALETTE.ink }}>
+        <section className="pt-14 pb-16 sm:pt-16 sm:pb-20 px-5 sm:px-8 relative overflow-hidden transition-colors" style={{ backgroundColor: PALETTE.ink }}>
           <HeroVisual reducedMotion={reducedMotion} />
-          <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+          <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 sm:gap-14 items-center">
             <Reveal>
               <Eyebrow icon={Sparkles} tone={PALETTE.gold}>Event infrastructure, not just a listing page</Eyebrow>
-              <h1 className="es-display text-4xl sm:text-5xl font-bold leading-tight mt-4" style={{ color: PALETTE.porcelain }}>
+              <h1 className="es-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mt-4" style={{ color: PALETTE.porcelain }}>
                 Sell the seat.<br />Scan the ticket.<br /><span className="es-text-gold">Own the data.</span>
               </h1>
               <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: "rgba(241,241,244,0.78)" }}>
@@ -1378,7 +1444,7 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- ROLES ---------------- */}
-        <section id="organizers" className="px-5 sm:px-8 py-20" style={{ backgroundColor: contentBg }}>
+        <section id="organizers" className="px-5 sm:px-8 py-14 sm:py-20" style={{ backgroundColor: contentBg }}>
           <div className="max-w-6xl mx-auto">
             <Reveal className="max-w-xl mb-12">
               <Eyebrow icon={Layers} tone={PALETTE.teal}>Three roles, one platform</Eyebrow>
@@ -1399,7 +1465,7 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- DISCOVERY ---------------- */}
-        <section id="discover" className="px-5 sm:px-8 py-20" style={{ backgroundColor: dark ? PALETTE.inkSoft : PALETTE.porcelainSoft }}>
+        <section id="discover" className="px-5 sm:px-8 py-14 sm:py-20" style={{ backgroundColor: dark ? PALETTE.inkSoft : PALETTE.porcelainSoft }}>
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
               <Reveal>
@@ -1504,8 +1570,8 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- ANALYTICS ---------------- */}
-        <section id="analytics" className="px-5 sm:px-8 py-20 transition-colors" style={{ backgroundColor: contentBg }}>
-          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+        <section id="analytics" className="px-5 sm:px-8 py-14 sm:py-20 transition-colors" style={{ backgroundColor: contentBg }}>
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 sm:gap-14 items-center">
             <Reveal>
               <Eyebrow icon={BarChart3} tone={PALETTE.teal}>For organizers</Eyebrow>
               <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>Know what sold, and why</h2>
@@ -1581,8 +1647,8 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- QR / CHECK-IN ---------------- */}
-        <section id="tickets" className="px-5 sm:px-8 py-20" style={{ backgroundColor: contentBg }}>
-          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+        <section id="tickets" className="px-5 sm:px-8 py-14 sm:py-20" style={{ backgroundColor: contentBg }}>
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 sm:gap-14 items-center">
             <Reveal className="order-2 lg:order-1 relative mx-auto max-w-xs w-full">
               <div className="relative rounded-2xl aspect-[4/5] border-2 border-dashed flex items-center justify-center overflow-hidden" style={{ borderColor: PALETTE.teal, backgroundColor: dark ? PALETTE.inkSoft : "#fff" }}>
                 <QrCode className="w-20 h-20" style={{ color: contentMuted }} />
@@ -1610,7 +1676,7 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- GALLERY / LIGHTBOX ---------------- */}
-        <section id="gallery" className="px-5 sm:px-8 py-20" style={{ backgroundColor: dark ? PALETTE.inkSoft : PALETTE.porcelainSoft }}>
+        <section id="gallery" className="px-5 sm:px-8 py-14 sm:py-20" style={{ backgroundColor: dark ? PALETTE.inkSoft : PALETTE.porcelainSoft }}>
           <div className="max-w-6xl mx-auto">
             <Reveal className="max-w-xl mb-10">
               <Eyebrow icon={Camera} tone={PALETTE.gold}>From the field</Eyebrow>
@@ -1664,8 +1730,12 @@ export default function EventSpherePro() {
       </main>
 
       {/* ---------------- FOOTER ---------------- */}
-      <footer className="es-no-print px-5 sm:px-8 pt-12 pb-8 es-tear transition-colors" style={{ backgroundColor: contentBg, borderColor: contentLine }}>
-        <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+      <footer className="es-no-print relative px-5 sm:px-8 pt-14 pb-8 es-tear transition-colors" style={{ backgroundColor: contentBg, borderColor: contentLine }}>
+        <div
+          className="absolute top-0 left-0 right-0 h-[3px]"
+          style={{ background: `linear-gradient(90deg, ${PALETTE.gold}, ${PALETTE.plum}, ${PALETTE.teal})` }}
+        />
+        <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-10 mb-10">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-md es-bg-gold flex items-center justify-center">
@@ -1673,7 +1743,25 @@ export default function EventSpherePro() {
               </div>
               <span className="es-display font-semibold" style={{ color: contentText }}>EventSphere Pro</span>
             </div>
-            <p className="text-sm" style={{ color: contentMuted }}>Event infrastructure for organizers who sell real tickets.</p>
+            <p className="text-sm mb-5 max-w-[22ch]" style={{ color: contentMuted }}>Event infrastructure for organizers who sell real tickets.</p>
+            <div className="flex items-center gap-2">
+              {[
+                [Globe, "Website"],
+                [MessageCircle, "Contact"],
+                [Mail, "Email"],
+              ].map(([Icon, label]) => (
+                <Tooltip key={label} label={label}>
+                  <a
+                    href="#"
+                    aria-label={label}
+                    className="w-8 h-8 rounded-full border flex items-center justify-center transition-colors hover:-translate-y-0.5"
+                    style={{ borderColor: contentLine, color: contentMuted }}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </a>
+                </Tooltip>
+              ))}
+            </div>
           </div>
           {[
             [Layers, "Product", ["Discovery", "Ticketing", "Analytics", "QR check-in"]],
@@ -1690,9 +1778,18 @@ export default function EventSpherePro() {
             </div>
           ))}
         </div>
-        <div className="max-w-6xl mx-auto pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ borderColor: contentLine, color: contentMuted }}>
-          <span>© 2026 EventSphere Pro. Built for the DevHatch Labs portfolio.</span>
-          <span className="es-mono">ES-10293 · AI Summit 2026</span>
+        <div className="max-w-6xl mx-auto pt-6 border-t flex flex-col-reverse sm:flex-row items-center justify-between gap-4 text-xs" style={{ borderColor: contentLine, color: contentMuted }}>
+          <span className="text-center sm:text-left">© 2026 EventSphere Pro. Built for the DevHatch Labs portfolio.</span>
+          <div className="flex items-center gap-4">
+            <span className="es-mono hidden sm:inline">ES-10293 · AI Summit 2026</span>
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-semibold transition-colors hover:-translate-y-0.5"
+              style={{ borderColor: contentLine, color: contentText }}
+            >
+              <ArrowUp className="w-3 h-3" /> Back to top
+            </button>
+          </div>
         </div>
       </footer>
 
