@@ -7,6 +7,7 @@ import {
   Star, Clock, Sun, Moon, CheckCircle2, BarChart3, UserCog, CalendarCheck2,
   Menu, X, Heart, Printer, Info, AlertTriangle, Loader2,
   ChevronLeft, ChevronRight, Keyboard, LogIn, LogOut,
+  Sparkles, Compass, Camera, Layers, Building2,
 } from "lucide-react";
 import { useAuth } from "./auth/AuthContext";
 import { api, ApiError } from "./api/client";
@@ -101,6 +102,22 @@ const ROLE_PHOTOS = {
   Attendee: "/media/roles/role-attendee.jpg",
 };
 
+// Real event photos already in the repo, used as a stand-in until the dedicated
+// role photos above are dropped in.
+const ROLE_PHOTO_FALLBACKS = {
+  Admin: "/media/gallery/gallery-02-checkin-line.jpg",
+  Organizer: "/media/gallery/gallery-07-marquee-gardens.jpg",
+  Attendee: "/media/gallery/gallery-06-attendee-lounge.jpg",
+};
+
+// Animated hero backdrop, used until a real hero-loop.mp4 is dropped in (see HeroVisual below).
+const HERO_SLIDES = [
+  { photo: "/media/gallery/gallery-01-main-stage.jpg", img: imgMainStage },
+  { photo: "/media/gallery/gallery-03-riverside-dusk.jpg", img: imgRiversideDusk },
+  { photo: "/media/gallery/gallery-07-marquee-gardens.jpg", img: imgMarqueeGardens },
+  { photo: "/media/gallery/gallery-05-scanning-tickets.jpg", img: imgScanningTickets },
+];
+
 const SHORTCUTS = [
   ["/", "Focus the search field"],
   ["D", "Toggle light / dark theme"],
@@ -163,6 +180,18 @@ function Styles() {
       }
       .es-marquee-track { animation: es-marquee 26s linear infinite; width: max-content; }
 
+      /* Hero backdrop: slow Ken Burns drift on the cross-fading event photos */
+      @keyframes es-kenburns {
+        0% { transform: scale(1.02); }
+        100% { transform: scale(1.14); }
+      }
+      .es-hero-slide { animation: es-kenburns 14s ease-in-out infinite alternate; }
+
+      @keyframes es-ping {
+        75%, 100% { transform: scale(2.2); opacity: 0; }
+      }
+      .es-ping { animation: es-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
       @keyframes es-scan { 0% { top: 6%; } 50% { top: 88%; } 100% { top: 6%; } }
       .es-scanline { animation: es-scan 2.6s ease-in-out infinite; }
 
@@ -189,16 +218,32 @@ function Styles() {
       .es-card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 28px -12px rgba(0,0,0,0.35); }
 
       @media (prefers-reduced-motion: reduce) {
-        .es-marquee-track, .es-scanline, .es-skeleton, .es-pop, .es-toast, .es-tooltip { animation: none !important; }
+        .es-marquee-track, .es-scanline, .es-skeleton, .es-pop, .es-toast, .es-tooltip,
+        .es-hero-slide, .es-ping { animation: none !important; }
         .es-reveal { transition: none !important; opacity: 1 !important; transform: none !important; }
         .es-card-hover:hover { transform: none !important; }
       }
 
       @media print {
+        @page { margin: 12mm; }
+        *, *::before, *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        html, body { background: #fff !important; }
         body * { visibility: hidden !important; }
+        /* Reset scroll-reveal transforms so they can't accidentally become a
+           containing block for the fixed-positioned print area below. */
+        .es-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
         .es-print-area, .es-print-area * { visibility: visible !important; }
         .es-print-area {
-          position: absolute; left: 0; top: 0; width: 100%;
+          position: fixed !important;
+          top: 12mm !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 340px !important;
+          margin: 0 auto !important;
           box-shadow: none !important;
         }
         .es-no-print { display: none !important; }
@@ -245,23 +290,48 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-function HeroVideo({ reducedMotion }) {
-  const [videoOk, setVideoOk] = useState(true);
+// Fallback chain: real hero-loop.mp4 (if dropped in later) > animated cross-fading
+// photo slideshow (built from the real gallery photos already in the repo) > flat scrim.
+function HeroVisual({ reducedMotion }) {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+
+  useEffect(() => {
+    if (reducedMotion) return undefined;
+    const t = setInterval(() => setSlideIndex((i) => (i + 1) % HERO_SLIDES.length), 5200);
+    return () => clearInterval(t);
+  }, [reducedMotion]);
+
   return (
-    <div className="absolute inset-0 z-0" aria-hidden="true">
-      {videoOk && (
+    <div className="absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+      {HERO_SLIDES.map((slide, i) => (
+        <img
+          key={slide.photo}
+          src={slide.photo}
+          alt=""
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = slide.img; }}
+          className="es-hero-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+          style={{ opacity: i === slideIndex ? 1 : 0 }}
+        />
+      ))}
+
+      {!videoFailed && (
         <video
-          className="absolute inset-0 w-full h-full object-cover"
+          className="es-hero-video absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+          style={{ opacity: videoReady ? 1 : 0 }}
           poster="/media/hero/hero-poster.jpg"
           autoPlay={!reducedMotion}
           muted
           loop
           playsInline
-          onError={() => setVideoOk(false)}
+          onCanPlay={() => setVideoReady(true)}
+          onError={() => setVideoFailed(true)}
         >
           <source src="/media/hero/hero-loop.mp4" type="video/mp4" />
         </video>
       )}
+
       {/* Scrim so hero copy stays legible over any footage, in both themes */}
       <div
         className="absolute inset-0"
@@ -271,19 +341,36 @@ function HeroVideo({ reducedMotion }) {
   );
 }
 
+function HeroLiveChip() {
+  return (
+    <div
+      className="es-no-print absolute -top-4 left-6 sm:left-10 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full es-pop shadow-lg"
+      style={{ backgroundColor: PALETTE.inkSoft, border: `1px solid ${PALETTE.lineDark}` }}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="es-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: PALETTE.teal }} />
+        <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: PALETTE.teal }} />
+      </span>
+      <span className="es-mono text-[11px] font-semibold tracking-wide" style={{ color: PALETTE.porcelain }}>
+        Live · 3 events checking in right now
+      </span>
+    </div>
+  );
+}
+
 function CheckinPhoto({ dark }) {
-  const [ok, setOk] = useState(true);
-  if (!ok) return null;
+  const FALLBACK = "/media/gallery/gallery-02-checkin-line.jpg";
+  const [src, setSrc] = useState("/media/tickets/checkin-moment.jpg");
   return (
     <div
       className="es-card-hover absolute -bottom-6 -right-6 w-28 h-20 rounded-xl overflow-hidden border-4 shadow-lg hidden sm:block"
       style={{ borderColor: dark ? PALETTE.ink : "#fff" }}
     >
       <img
-        src="/media/tickets/checkin-moment.jpg"
+        src={src}
         alt="Organizer scanning a ticket at the door"
         loading="lazy"
-        onError={() => setOk(false)}
+        onError={() => { if (src !== FALLBACK) setSrc(FALLBACK); }}
         className="w-full h-full object-cover"
       />
     </div>
@@ -296,6 +383,15 @@ function Reveal({ children, className = "" }) {
     <div ref={ref} className={`es-reveal ${visible ? "es-visible" : ""} ${className}`}>
       {children}
     </div>
+  );
+}
+
+/* Small icon-led section kicker, used above every section heading for a consistent, icon-driven look */
+function Eyebrow({ icon: Icon, tone, children }) {
+  return (
+    <span className="es-mono inline-flex items-center gap-1.5 text-xs tracking-[0.2em] uppercase" style={{ color: tone }}>
+      <Icon className="w-3.5 h-3.5" /> {children}
+    </span>
   );
 }
 
@@ -831,45 +927,53 @@ function EventCardSkeleton({ dark }) {
   );
 }
 
-function RoleCard({ icon: Icon, title, accent, points, dark, photo }) {
-  const [photoOk, setPhotoOk] = useState(true);
+// photo = the dedicated role photo (not in the repo yet); fallbackPhoto = a real event
+// photo already on hand that fits the role's vibe, used while the real one is missing.
+function RoleCard({ icon: Icon, title, accent, points, dark, photo, fallbackPhoto }) {
+  const [src, setSrc] = useState(photo);
+  const [imageOk, setImageOk] = useState(true);
+  const cardBg = dark ? PALETTE.inkSoft : "#fff";
+
   return (
     <div
-      className="es-card-hover relative rounded-2xl p-6 border flex flex-col gap-4"
-      style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: dark ? PALETTE.inkSoft : "#fff" }}
+      className="es-card-hover relative rounded-2xl overflow-hidden border flex flex-col"
+      style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: cardBg }}
     >
-      <div className="relative w-11 h-11 shrink-0">
-        {photoOk ? (
+      <div className="relative h-28 w-full overflow-hidden shrink-0">
+        {imageOk ? (
           <img
-            src={photo}
+            src={src}
             alt=""
             aria-hidden="true"
             loading="lazy"
-            onError={() => setPhotoOk(false)}
-            className="w-11 h-11 rounded-xl object-cover"
-            style={{ border: `1px solid ${accent}55` }}
+            onError={() => {
+              if (src !== fallbackPhoto) setSrc(fallbackPhoto);
+              else setImageOk(false);
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent + "22" }}>
-            <Icon className="w-5 h-5" style={{ color: accent }} />
-          </div>
+          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}3D, ${accent}14)` }} />
         )}
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${accent}00 45%, ${cardBg} 98%)` }} />
         <div
-          className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center border-2"
-          style={{ backgroundColor: accent, borderColor: dark ? PALETTE.inkSoft : "#fff", display: photoOk ? "flex" : "none" }}
+          className="absolute bottom-3 left-5 w-11 h-11 rounded-xl flex items-center justify-center border-2 shadow-md"
+          style={{ backgroundColor: accent, borderColor: cardBg }}
         >
-          <Icon className="w-2.5 h-2.5" style={{ color: "#fff" }} />
+          <Icon className="w-5 h-5" style={{ color: "#fff" }} />
         </div>
       </div>
-      <h3 className="es-display text-lg font-semibold" style={{ color: dark ? PALETTE.porcelain : PALETTE.ink }}>{title}</h3>
-      <ul className="flex flex-col gap-2 text-sm" style={{ color: dark ? "#B9BBC4" : PALETTE.slate }}>
-        {points.map((p) => (
-          <li key={p} className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: accent }} />
-            <span>{p}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="p-6 pt-5 flex flex-col gap-4">
+        <h3 className="es-display text-lg font-semibold" style={{ color: dark ? PALETTE.porcelain : PALETTE.ink }}>{title}</h3>
+        <ul className="flex flex-col gap-2 text-sm" style={{ color: dark ? "#B9BBC4" : PALETTE.slate }}>
+          {points.map((p) => (
+            <li key={p} className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: accent }} />
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -1175,10 +1279,10 @@ export default function EventSpherePro() {
       <main id="es-main">
         {/* ---------------- HERO ---------------- */}
         <section className="pt-16 pb-20 px-5 sm:px-8 relative overflow-hidden transition-colors" style={{ backgroundColor: PALETTE.ink }}>
-          <HeroVideo reducedMotion={reducedMotion} />
+          <HeroVisual reducedMotion={reducedMotion} />
           <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
             <Reveal>
-              <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-gold">Event infrastructure, not just a listing page</span>
+              <Eyebrow icon={Sparkles} tone={PALETTE.gold}>Event infrastructure, not just a listing page</Eyebrow>
               <h1 className="es-display text-4xl sm:text-5xl font-bold leading-tight mt-4" style={{ color: PALETTE.porcelain }}>
                 Sell the seat.<br />Scan the ticket.<br /><span className="es-text-gold">Own the data.</span>
               </h1>
@@ -1205,6 +1309,7 @@ export default function EventSpherePro() {
 
             {/* Signature: ticket stub visual, also the print target */}
             <Reveal className="relative mx-auto max-w-sm w-full">
+              <HeroLiveChip />
               <div className="es-print-area rounded-2xl overflow-hidden shadow-2xl" style={{ backgroundColor: PALETTE.inkSoft, border: `1px solid ${PALETTE.lineDark}` }}>
                 <div className="p-5 flex items-center justify-between" style={{ background: `linear-gradient(120deg, ${PALETTE.plum}, ${PALETTE.inkSoft})` }}>
                   <span className="es-mono text-[11px] tracking-widest uppercase text-white/80">EventSphere</span>
@@ -1276,18 +1381,18 @@ export default function EventSpherePro() {
         <section id="organizers" className="px-5 sm:px-8 py-20" style={{ backgroundColor: contentBg }}>
           <div className="max-w-6xl mx-auto">
             <Reveal className="max-w-xl mb-12">
-              <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-teal">Three roles, one platform</span>
+              <Eyebrow icon={Layers} tone={PALETTE.teal}>Three roles, one platform</Eyebrow>
               <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>Built around who's actually in the room</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: contentMuted }}>
                 Every screen is scoped to a role, so nobody sees a control they don't need.
               </p>
             </Reveal>
             <div className="grid md:grid-cols-3 gap-6">
-              <Reveal><RoleCard icon={UserCog} title="Admin" accent={PALETTE.plum} dark={dark} photo={ROLE_PHOTOS.Admin}
+              <Reveal><RoleCard icon={UserCog} title="Admin" accent={PALETTE.plum} dark={dark} photo={ROLE_PHOTOS.Admin} fallbackPhoto={ROLE_PHOTO_FALLBACKS.Admin}
                 points={["Approve and verify organizers", "Manage categories platform-wide", "Monitor usage across every event", "Full platform analytics"]} /></Reveal>
-              <Reveal><RoleCard icon={CalendarCheck2} title="Organizer" accent={PALETTE.gold} dark={dark} photo={ROLE_PHOTOS.Organizer}
+              <Reveal><RoleCard icon={CalendarCheck2} title="Organizer" accent={PALETTE.gold} dark={dark} photo={ROLE_PHOTOS.Organizer} fallbackPhoto={ROLE_PHOTO_FALLBACKS.Organizer}
                 points={["Publish events with tiered ticketing", "Track bookings as they land", "Scan QR tickets at the door", "Revenue analytics per event"]} /></Reveal>
-              <Reveal><RoleCard icon={Users} title="Attendee" accent={PALETTE.teal} dark={dark} photo={ROLE_PHOTOS.Attendee}
+              <Reveal><RoleCard icon={Users} title="Attendee" accent={PALETTE.teal} dark={dark} photo={ROLE_PHOTOS.Attendee} fallbackPhoto={ROLE_PHOTO_FALLBACKS.Attendee}
                 points={["Search and filter by date, price, city", "Pay securely, get a QR ticket instantly", "Manage bookings in one place", "Leave a review after the event"]} /></Reveal>
             </div>
           </div>
@@ -1298,7 +1403,7 @@ export default function EventSpherePro() {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
               <Reveal>
-                <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-gold">Discover</span>
+                <Eyebrow icon={Compass} tone={PALETTE.gold}>Discover</Eyebrow>
                 <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>What's on right now</h2>
               </Reveal>
               <div className="flex items-center gap-2 rounded-full border px-4 py-2.5 w-full md:w-80" style={{ borderColor: contentLine, backgroundColor: contentBgSoft }}>
@@ -1402,7 +1507,7 @@ export default function EventSpherePro() {
         <section id="analytics" className="px-5 sm:px-8 py-20 transition-colors" style={{ backgroundColor: contentBg }}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
             <Reveal>
-              <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-teal">For organizers</span>
+              <Eyebrow icon={BarChart3} tone={PALETTE.teal}>For organizers</Eyebrow>
               <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>Know what sold, and why</h2>
               <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: contentMuted }}>
                 Every booking, refund, and check-in rolls up into a live dashboard —
@@ -1424,30 +1529,51 @@ export default function EventSpherePro() {
               </div>
             </Reveal>
 
-            <Reveal className="rounded-2xl p-6 border" >
-              <div style={{ backgroundColor: PALETTE.inkSoft, borderColor: PALETTE.lineDark }} className="rounded-2xl p-0">
-                <div className="grid grid-cols-4 gap-3 mb-6">
-                  {[["18", "Events"], ["2,140", "Sold"], ["Rs 612K", "Revenue"], ["96%", "Attendance"]].map(([num, label]) => (
-                    <div key={label} className="rounded-xl p-3 text-center" style={{ backgroundColor: PALETTE.ink }}>
-                      <p className="es-mono text-lg font-semibold es-text-gold">{num}</p>
-                      <p className="text-[10px] uppercase tracking-wide mt-1" style={{ color: "#8B8E99" }}>{label}</p>
-                    </div>
-                  ))}
+            <Reveal>
+              <div
+                className="es-card-hover rounded-2xl overflow-hidden border shadow-xl"
+                style={{ backgroundColor: PALETTE.inkSoft, borderColor: PALETTE.lineDark }}
+              >
+                <div className="relative h-28 sm:h-32 w-full overflow-hidden shrink-0">
+                  <img
+                    src="/media/gallery/gallery-05-scanning-tickets.jpg"
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = imgScanningTickets; }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${PALETTE.ink}40 0%, ${PALETTE.inkSoft} 96%)` }} />
+                  <div className="absolute bottom-3 left-5 right-5 flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 es-text-gold shrink-0" />
+                    <span className="es-mono text-[11px] uppercase tracking-wide truncate" style={{ color: PALETTE.porcelain }}>Live dashboard preview</span>
+                  </div>
                 </div>
-                <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#8B8E99" }}>Monthly revenue</p>
-                <div className="flex items-end gap-2 h-28 mb-6">
-                  {[40, 55, 48, 70, 62, 90, 75].map((h, i) => (
-                    <div key={i} className="flex-1 rounded-t-md transition-all duration-700" style={{ height: `${h}%`, backgroundColor: i === 5 ? PALETTE.gold : PALETTE.lineDark }} />
-                  ))}
-                </div>
-                <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#8B8E99" }}>Top events this month</p>
-                <div className="flex flex-col gap-2">
-                  {["AI Summit 2026", "Riverside Acoustic Night", "Product Design Workshop"].map((name, i) => (
-                    <div key={name} className="flex items-center justify-between text-sm">
-                      <span style={{ color: "#D7D9DF" }}>{name}</span>
-                      <span className="es-mono es-text-teal">{[92, 74, 61][i]}%</span>
-                    </div>
-                  ))}
+
+                <div className="p-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    {[["18", "Events"], ["2,140", "Sold"], ["Rs 612K", "Revenue"], ["96%", "Attendance"]].map(([num, label]) => (
+                      <div key={label} className="rounded-xl p-3 text-center overflow-hidden" style={{ backgroundColor: PALETTE.ink }}>
+                        <p className="es-mono text-base sm:text-lg font-semibold es-text-gold truncate">{num}</p>
+                        <p className="text-[10px] uppercase tracking-wide mt-1 truncate" style={{ color: "#8B8E99" }}>{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#8B8E99" }}>Monthly revenue</p>
+                  <div className="flex items-end gap-2 h-28 mb-6">
+                    {[40, 55, 48, 70, 62, 90, 75].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-t-md transition-all duration-700" style={{ height: `${h}%`, backgroundColor: i === 5 ? PALETTE.gold : PALETTE.lineDark }} />
+                    ))}
+                  </div>
+                  <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#8B8E99" }}>Top events this month</p>
+                  <div className="flex flex-col gap-2">
+                    {["AI Summit 2026", "Riverside Acoustic Night", "Product Design Workshop"].map((name, i) => (
+                      <div key={name} className="flex items-center justify-between text-sm gap-3">
+                        <span className="truncate" style={{ color: "#D7D9DF" }}>{name}</span>
+                        <span className="es-mono es-text-teal shrink-0">{[92, 74, 61][i]}%</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </Reveal>
@@ -1468,7 +1594,7 @@ export default function EventSpherePro() {
               <CheckinPhoto dark={dark} />
             </Reveal>
             <Reveal className="order-1 lg:order-2">
-              <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-plum">At the door</span>
+              <Eyebrow icon={ScanLine} tone={PALETTE.plum}>At the door</Eyebrow>
               <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>One scan, no guest list printouts</h2>
               <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: contentMuted }}>
                 Every booking generates a unique QR ticket the moment payment clears.
@@ -1487,7 +1613,7 @@ export default function EventSpherePro() {
         <section id="gallery" className="px-5 sm:px-8 py-20" style={{ backgroundColor: dark ? PALETTE.inkSoft : PALETTE.porcelainSoft }}>
           <div className="max-w-6xl mx-auto">
             <Reveal className="max-w-xl mb-10">
-              <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-gold">From the field</span>
+              <Eyebrow icon={Camera} tone={PALETTE.gold}>From the field</Eyebrow>
               <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>Moments from events on the platform</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: contentMuted }}>
                 Placeholder tiles stand in for real event photography — select one to open the viewer.
@@ -1522,6 +1648,7 @@ export default function EventSpherePro() {
         {/* ---------------- FINAL CTA ---------------- */}
         <section className="es-bg-gold px-5 sm:px-8 py-16">
           <Reveal className="max-w-4xl mx-auto text-center">
+            <Sparkles className="w-6 h-6 mx-auto mb-4 es-text-ink" />
             <h2 className="es-display text-3xl sm:text-4xl font-bold es-text-ink">Your next event doesn't need a spreadsheet.</h2>
             <p className="mt-3 text-sm max-w-lg mx-auto" style={{ color: "#5B4517" }}>
               Set up your first event on EventSphere Pro in under ten minutes.
@@ -1549,12 +1676,14 @@ export default function EventSpherePro() {
             <p className="text-sm" style={{ color: contentMuted }}>Event infrastructure for organizers who sell real tickets.</p>
           </div>
           {[
-            ["Product", ["Discovery", "Ticketing", "Analytics", "QR check-in"]],
-            ["Organizers", ["Pricing", "Verification", "API"]],
-            ["Company", ["About", "Support", "Status"]],
-          ].map(([heading, links]) => (
+            [Layers, "Product", ["Discovery", "Ticketing", "Analytics", "QR check-in"]],
+            [Building2, "Organizers", ["Pricing", "Verification", "API"]],
+            [Info, "Company", ["About", "Support", "Status"]],
+          ].map(([Icon, heading, links]) => (
             <div key={heading}>
-              <p className="text-xs uppercase tracking-wide mb-3" style={{ color: contentMuted }}>{heading}</p>
+              <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide mb-3" style={{ color: contentMuted }}>
+                <Icon className="w-3.5 h-3.5" /> {heading}
+              </p>
               <ul className="flex flex-col gap-2 text-sm" style={{ color: contentText }}>
                 {links.map((l) => <li key={l}><a href="#" className="hover:opacity-70 transition-opacity">{l}</a></li>)}
               </ul>

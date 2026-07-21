@@ -19,6 +19,32 @@ Event infrastructure for organizers — real bookings, QR check-in, and revenue 
 
 ---
 
+## Demo credentials
+
+Seeded via the backend's `seed.py` (admin) and the API (organizer/attendee + 5 published sample events across all 4 categories). Log in at the nav's **Log in** button.
+
+| Role | Email | Password | What it can do |
+|---|---|---|---|
+| Admin | `admin@eventspherepro.test` | `ChangeMe123!` | Approve organizers, manage categories (API only — no admin UI yet) |
+| Organizer | `organizer@eventspherepro.test` | `Demo123!` | Create events (`Create event` button), see them go live once approved |
+| Attendee | `attendee@eventspherepro.test` | `Demo123!` | Browse/search/filter, book a ticket, get a `ticket_code` |
+
+Sample data already in the DB: **AI Summit 2026**, **Riverside Acoustic Night** (down to 3 seats — good for the scarcity-bar shot), **Product Design Workshop** (free), **Marquee Gardens Wedding Expo**, **Founders' Fireside**.
+
+## Feature tour (for a demo video)
+
+- **Hero** — animated cross-fading event-photo backdrop, live-stat pulse chip, printable ticket stub (`Print ticket` button, or `Ctrl/Cmd+P`)
+- **Discover** — debounced search (`/` to focus), category filter pills, infinite scroll, skeleton loading states
+- **Auth** — register/login as attendee or organizer, real-time field validation
+- **Booking** — book a live event as the attendee account → instant `ticket_code`, seat count updates immediately, sold-out state on the low-seat event
+- **Organizer tools** — log in as organizer → `Create event` → new events land as `draft` until admin-approved (already done for the demo organizer)
+- **QR / check-in** — animated scan-line demo panel
+- **Analytics** — revenue trend, top-events, attendance preview panel
+- **Gallery** — lightbox viewer, keyboard nav (`←`/`→`/`Esc`)
+- **Theming** — light/dark toggle (`D` key)
+- **Resilience** — `Test error boundary` link on the Discover section shows a crashing panel recovering without white-screening the app
+- **Shortcuts** — press `?` for the full list
+
 ## Here's what actually exists in this repo right now
 
 **Backend** — `backend/` (Flask + PostgreSQL, not MySQL):
