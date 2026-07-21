@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eventsphere
+      POSTGRES_PASSWORD: eventsphere
+      POSTGRES_DB: eventsphere
+    ports:
+      - "5432:5432"
+    volumes:
+      - eventsphere_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventsphere -d eventsphere"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overrides the .env value so the backend reaches Postgres by its
+      # service name on the Docker network instead of localhost.
+      DATABASE_URL: postgresql+psycopg2://eventsphere:eventsphere@db:5432/eventsphere
+      FRONTEND_ORIGIN: http://localhost:5173
+    ports:
+      - "5057:5057"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
+    environment:
+      # The bundle runs in the host browser, so it must reach the backend
+      # via its published host port, not the internal Docker network.
+      VITE_API_BASE_URL: http://localhost:5057/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  eventsphere_pg_data:
+  frontend_node_modules:

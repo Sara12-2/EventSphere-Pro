@@ -1,6 +1,25 @@
-# EventSphere Pro — Detailed Project Report
+<div align="center">
 
-## Here's what actually exists in this repo right now:
+# EventSphere Pro
+
+**Sell the seat. Scan the ticket. Own the data.**
+
+Event infrastructure for organizers — real bookings, QR check-in, and revenue analytics, backed by an actual API and database instead of a form bolted onto a calendar.
+
+[![React](https://img.shields.io/badge/React-19-149ECA?style=for-the-badge&logo=react&logoColor=white)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
+[![Flask](https://img.shields.io/badge/Flask-3-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+
+[![Tests](https://img.shields.io/badge/backend%20tests-11%20passing-success?style=flat-square)]()
+[![Status](https://img.shields.io/badge/status-active-success?style=flat-square)]()
+
+</div>
+
+---
+
+## Here's what actually exists in this repo right now
 
 **Backend** — `backend/` (Flask + PostgreSQL, not MySQL):
 - JWT auth with three roles (admin/organizer/attendee), bcrypt passwords, rate-limited login/register, httpOnly+CSRF-protected refresh cookie
@@ -10,20 +29,36 @@
 
 **Frontend** — `frontend/` (Vite + React, not Next.js/TypeScript yet):
 - The full "Marquee & Stub" UI, wired to the real API — live event data, real login/register, real bookings
+- Looping video hero, real event photography, and icon-driven UI (Lucide icons only, no emoji) — see `frontend/README.md` for the full media asset list
 - `EventSpherePro_Frontend.jsx` at the repo root is the original standalone draft this was built from; it's kept for reference and isn't wired to anything
 - See `frontend/README.md` for setup
+
+**Infrastructure:**
+- One-command Docker setup — `docker compose up -d --build` builds and starts Postgres, Flask, and Vite together, with migrations/seeding automatic and source hot-reload preserved via bind mounts
 
 **Not built yet:** payments, QR-code scanning/check-in, email notifications, analytics dashboards, an organizer "my events" UI, and an admin UI (organizer approval + category management are API-only for now — see `backend/README.md`).
 
 ### Quick start
 
+**Option A — one command (Docker), recommended:**
+
 ```bash
-# Backend (needs Docker for Postgres)
+cd backend  && cp .env.example .env  && cd ..
+cd frontend && cp .env.example .env  && cd ..
+docker compose up -d --build
+```
+
+That builds and starts Postgres, the Flask API, and the Vite dev server together — migrations and seeding run automatically on backend startup. Frontend: http://localhost:5173 · Backend: http://localhost:5057. Source is bind-mounted into both containers, so edits on your machine still hot-reload. See the root `docker-compose.yml`.
+
+**Option B — run natively (no Docker for the app servers):**
+
+```bash
+# Backend (still needs Docker, just for Postgres)
 cd backend
 python -m venv .venv && .venv/Scripts/activate
 pip install -r requirements.txt
 cp .env.example .env
-docker compose up -d
+docker compose -f ../docker-compose.yml up -d db
 flask db upgrade
 python seed.py
 python run.py          # http://localhost:5057
@@ -37,9 +72,11 @@ npm run dev             # http://localhost:5173
 
 ---
 
+*Everything from here down is the original planning document, kept as-is for historical context. Parts of it (Next.js/TypeScript, MySQL, payments, QR scanning, analytics dashboards) describe the long-term vision and haven't been built yet — see the "what actually exists" section above for the real current state.*
+
 ## 1. Executive Summary
 
-**EventSphere Pro** is a proposed full-stack SaaS-style Event Management Platform designed as the  portfolio project.
+**EventSphere Pro** is a full-stack SaaS-style Event Management Platform built as a portfolio project.
 The platform is envisioned as a complete event lifecycle system covering **discovery, booking, ticketing, payments, QR check-in, and analytics** — not a simple CRUD app, but a multi-role, production-grade product.
 
 > **Vision statement:** *"A complete event discovery, booking, ticketing, and management platform where organizers can create events, sell tickets, manage attendees, and analyze performance."*
