@@ -28,10 +28,23 @@ export class ApiError extends Error {
   }
 }
 
+function readCookie(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function rawRequest(path, { method = "GET", body, skipAuth = false } = {}) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (accessToken && !skipAuth) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  // /auth/refresh and /auth/logout authenticate via the httpOnly refresh
+  // cookie rather than the Authorization header, so they need the
+  // double-submit CSRF token the backend exposes in a readable cookie.
+  if (path === "/auth/refresh" || path === "/auth/logout") {
+    const csrfToken = readCookie("csrf_refresh_token");
+    if (csrfToken) headers["X-CSRF-TOKEN"] = csrfToken;
+  }
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method,

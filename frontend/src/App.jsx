@@ -5,11 +5,21 @@ import {
   Ticket, QrCode, MapPin, Users, ShieldCheck, TrendingUp,
   Search, SlidersHorizontal, Wallet, BadgeCheck, ScanLine, ArrowRight,
   Star, Clock, Sun, Moon, CheckCircle2, BarChart3, UserCog, CalendarCheck2,
-  Menu, X, Heart, Printer, Info, AlertTriangle, Loader2, Image as ImageIcon,
-  ChevronLeft, ChevronRight, Keyboard, LogIn, LogOut, UserPlus,
+  Menu, X, Heart, Printer, Info, AlertTriangle, Loader2,
+  ChevronLeft, ChevronRight, Keyboard, LogIn, LogOut,
 } from "lucide-react";
 import { useAuth } from "./auth/AuthContext";
 import { api, ApiError } from "./api/client";
+
+import imgMainStage from "./assets/illustrations/main-stage.svg";
+import imgCheckinLine from "./assets/illustrations/checkin-line.svg";
+import imgRiversideDusk from "./assets/illustrations/riverside-dusk.svg";
+import imgWorkshopRoom from "./assets/illustrations/workshop-room.svg";
+import imgScanningTickets from "./assets/illustrations/scanning-tickets.svg";
+import imgAttendeeLounge from "./assets/illustrations/attendee-lounge.svg";
+import imgMarqueeGardens from "./assets/illustrations/marquee-gardens.svg";
+import imgPostTeardown from "./assets/illustrations/post-teardown.svg";
+import imgConcertCrowd from "./assets/illustrations/concert-crowd.svg";
 
 /* ---------------------------------------------------------------
    EventSphere Pro — Marketing / Product Frontend
@@ -39,6 +49,12 @@ const PALETTE = {
 };
 
 const CATEGORY_TONE = { conferences: "gold", concerts: "plum", workshops: "teal", weddings: "plum" };
+const CATEGORY_IMAGE = {
+  conferences: imgMainStage,
+  concerts: imgConcertCrowd,
+  workshops: imgWorkshopRoom,
+  weddings: imgMarqueeGardens,
+};
 
 function formatEventDate(iso) {
   const d = new Date(iso);
@@ -62,19 +78,28 @@ function adaptEvent(e) {
     seatsLeft: e.seats_left,
     seatsTotal: e.capacity,
     tone: CATEGORY_TONE[slug] || "gold",
+    image: CATEGORY_IMAGE[slug] || imgMainStage,
   };
 }
 
+// `photo` points at /public/media — a real event photo the site owner drops in later.
+// `img` is the existing illustration, used as the onError fallback until then.
 const GALLERY = [
-  { caption: "Main stage, AI Summit 2026", from: "#D9A441", to: "#15171C" },
-  { caption: "Check-in line at Expo Center", from: "#146B63", to: "#1D2027" },
-  { caption: "Riverside Amphitheatre at dusk", from: "#6A2C55", to: "#15171C" },
-  { caption: "Workshop breakout room", from: "#D9A441", to: "#6A2C55" },
-  { caption: "Organizer scanning tickets", from: "#146B63", to: "#D9A441" },
-  { caption: "Attendee lounge", from: "#6A2C55", to: "#146B63" },
-  { caption: "Marquee Gardens setup", from: "#1D2027", to: "#D9A441" },
-  { caption: "Post-event teardown", from: "#15171C", to: "#6A2C55" },
+  { caption: "Main stage, AI Summit 2026", photo: "/media/gallery/gallery-01-main-stage.jpg", img: imgMainStage },
+  { caption: "Check-in line at Expo Center", photo: "/media/gallery/gallery-02-checkin-line.jpg", img: imgCheckinLine },
+  { caption: "Riverside Amphitheatre at dusk", photo: "/media/gallery/gallery-03-riverside-dusk.jpg", img: imgRiversideDusk },
+  { caption: "Workshop breakout room", photo: "/media/gallery/gallery-04-workshop-room.jpg", img: imgWorkshopRoom },
+  { caption: "Organizer scanning tickets", photo: "/media/gallery/gallery-05-scanning-tickets.jpg", img: imgScanningTickets },
+  { caption: "Attendee lounge", photo: "/media/gallery/gallery-06-attendee-lounge.jpg", img: imgAttendeeLounge },
+  { caption: "Marquee Gardens setup", photo: "/media/gallery/gallery-07-marquee-gardens.jpg", img: imgMarqueeGardens },
+  { caption: "Post-event teardown", photo: "/media/gallery/gallery-08-post-teardown.jpg", img: imgPostTeardown },
 ];
+
+const ROLE_PHOTOS = {
+  Admin: "/media/roles/role-admin.jpg",
+  Organizer: "/media/roles/role-organizer.jpg",
+  Attendee: "/media/roles/role-attendee.jpg",
+};
 
 const SHORTCUTS = [
   ["/", "Focus the search field"],
@@ -208,6 +233,63 @@ function useReveal() {
   return [ref, visible];
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const handler = (e) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return reduced;
+}
+
+function HeroVideo({ reducedMotion }) {
+  const [videoOk, setVideoOk] = useState(true);
+  return (
+    <div className="absolute inset-0 z-0" aria-hidden="true">
+      {videoOk && (
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          poster="/media/hero/hero-poster.jpg"
+          autoPlay={!reducedMotion}
+          muted
+          loop
+          playsInline
+          onError={() => setVideoOk(false)}
+        >
+          <source src="/media/hero/hero-loop.mp4" type="video/mp4" />
+        </video>
+      )}
+      {/* Scrim so hero copy stays legible over any footage, in both themes */}
+      <div
+        className="absolute inset-0"
+        style={{ background: `linear-gradient(115deg, ${PALETTE.ink}F2 0%, ${PALETTE.ink}D9 38%, ${PALETTE.ink}A8 100%)` }}
+      />
+    </div>
+  );
+}
+
+function CheckinPhoto({ dark }) {
+  const [ok, setOk] = useState(true);
+  if (!ok) return null;
+  return (
+    <div
+      className="es-card-hover absolute -bottom-6 -right-6 w-28 h-20 rounded-xl overflow-hidden border-4 shadow-lg hidden sm:block"
+      style={{ borderColor: dark ? PALETTE.ink : "#fff" }}
+    >
+      <img
+        src="/media/tickets/checkin-moment.jpg"
+        alt="Organizer scanning a ticket at the door"
+        loading="lazy"
+        onError={() => setOk(false)}
+        className="w-full h-full object-cover"
+      />
+    </div>
+  );
+}
+
 function Reveal({ children, className = "" }) {
   const [ref, visible] = useReveal();
   return (
@@ -226,7 +308,7 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="rounded-2xl border p-8 text-center" style={{ borderColor: PALETTE.lineDark }}>
+        <div className="rounded-2xl border p-8 text-center" style={{ borderColor: this.props.lineColor || PALETTE.lineDark }}>
           <AlertTriangle className="w-6 h-6 mx-auto mb-3" style={{ color: PALETTE.danger }} />
           <p className="es-display font-semibold mb-1" style={{ color: this.props.textColor }}>
             Something broke on this panel
@@ -305,7 +387,7 @@ function ToastStack({ toasts }) {
 }
 
 /* ---------------------------------- Modal (focus-trapped) ---------------------------------- */
-function Modal({ open, onClose, title, children }) {
+function Modal({ open, onClose, title, children, dark = true }) {
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -345,11 +427,22 @@ function Modal({ open, onClose, title, children }) {
         aria-modal="true"
         aria-label={title}
         className="es-pop relative rounded-2xl w-full max-w-md p-6 outline-none"
-        style={{ backgroundColor: PALETTE.inkSoft, color: PALETTE.porcelain, border: `1px solid ${PALETTE.lineDark}` }}
+        style={{
+          backgroundColor: dark ? PALETTE.inkSoft : "#fff",
+          color: dark ? PALETTE.porcelain : PALETTE.ink,
+          border: `1px solid ${dark ? PALETTE.lineDark : PALETTE.line}`,
+        }}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="es-display text-lg font-semibold">{title}</h3>
-          <button aria-label="Close dialog" onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/5">
+          <button
+            aria-label="Close dialog"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ color: dark ? PALETTE.porcelain : PALETTE.ink }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -360,7 +453,10 @@ function Modal({ open, onClose, title, children }) {
 }
 
 /* ---------------------------------- Create-event form (real-time validation) ---------------------------------- */
-function CreateEventForm({ onSubmit, categories }) {
+function CreateEventForm({ onSubmit, categories, dark = true }) {
+  const labelColor = dark ? "#B9BBC4" : PALETTE.slate;
+  const fieldTextColor = dark ? PALETTE.porcelain : PALETTE.ink;
+  const fieldBorderColor = dark ? PALETTE.lineDark : PALETTE.line;
   const [values, setValues] = useState({
     title: "", venue: "", city: "", category_id: "", date_time: "", capacity: "", price: "", description: "",
   });
@@ -395,7 +491,7 @@ function CreateEventForm({ onSubmit, categories }) {
     const showError = touched[key] && errors[key];
     return (
       <div className="mb-4">
-        <label htmlFor={`ce-${key}`} className="text-xs font-medium mb-1.5 block" style={{ color: "#B9BBC4" }}>
+        <label htmlFor={`ce-${key}`} className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>
           {label}
         </label>
         <input
@@ -408,7 +504,7 @@ function CreateEventForm({ onSubmit, categories }) {
           aria-invalid={!!showError}
           aria-describedby={showError ? `ce-${key}-err` : undefined}
           className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-          style={{ borderColor: showError ? PALETTE.danger : PALETTE.lineDark, color: PALETTE.porcelain }}
+          style={{ borderColor: showError ? PALETTE.danger : fieldBorderColor, color: fieldTextColor }}
         />
         {showError && (
           <p id={`ce-${key}-err`} className="text-xs mt-1.5 flex items-center gap-1" style={{ color: PALETTE.danger }}>
@@ -460,14 +556,14 @@ function CreateEventForm({ onSubmit, categories }) {
       {field("city", "City", "text", "e.g. Lahore")}
 
       <div className="mb-4">
-        <label htmlFor="ce-category" className="text-xs font-medium mb-1.5 block" style={{ color: "#B9BBC4" }}>Category</label>
+        <label htmlFor="ce-category" className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>Category</label>
         <select
           id="ce-category"
           value={values.category_id}
           onChange={(e) => { setValues((v) => ({ ...v, category_id: e.target.value })); setServerFieldErrors((f) => { const { category_id: _drop, ...rest } = f; return rest; }); }}
           onBlur={() => setTouched((t) => ({ ...t, category_id: true }))}
           className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-          style={{ borderColor: touched.category_id && errors.category_id ? PALETTE.danger : PALETTE.lineDark, color: PALETTE.porcelain }}
+          style={{ borderColor: touched.category_id && errors.category_id ? PALETTE.danger : fieldBorderColor, color: fieldTextColor }}
         >
           <option value="" style={{ color: PALETTE.ink }}>Select a category…</option>
           {categories.map((c) => (
@@ -509,8 +605,11 @@ function CreateEventForm({ onSubmit, categories }) {
 }
 
 /* ---------------------------------- Auth form (login / register) ---------------------------------- */
-function AuthForm({ mode, onSubmit, onSwitchMode }) {
+function AuthForm({ mode, onSubmit, onSwitchMode, dark = true }) {
   const isRegister = mode === "register";
+  const labelColor = dark ? "#B9BBC4" : PALETTE.slate;
+  const fieldTextColor = dark ? PALETTE.porcelain : PALETTE.ink;
+  const fieldBorderColor = dark ? PALETTE.lineDark : PALETTE.line;
   const [values, setValues] = useState({ name: "", email: "", password: "", role: "attendee" });
   const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -536,7 +635,7 @@ function AuthForm({ mode, onSubmit, onSwitchMode }) {
     const showError = touched[key] && errors[key];
     return (
       <div className="mb-4">
-        <label htmlFor={`au-${key}`} className="text-xs font-medium mb-1.5 block" style={{ color: "#B9BBC4" }}>
+        <label htmlFor={`au-${key}`} className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>
           {label}
         </label>
         <input
@@ -548,7 +647,7 @@ function AuthForm({ mode, onSubmit, onSwitchMode }) {
           aria-invalid={!!showError}
           aria-describedby={showError ? `au-${key}-err` : undefined}
           className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-          style={{ borderColor: showError ? PALETTE.danger : PALETTE.lineDark, color: PALETTE.porcelain }}
+          style={{ borderColor: showError ? PALETTE.danger : fieldBorderColor, color: fieldTextColor }}
         />
         {showError && (
           <p id={`au-${key}-err`} className="text-xs mt-1.5 flex items-center gap-1" style={{ color: PALETTE.danger }}>
@@ -584,13 +683,13 @@ function AuthForm({ mode, onSubmit, onSwitchMode }) {
 
       {isRegister && (
         <div className="mb-4">
-          <label htmlFor="au-role" className="text-xs font-medium mb-1.5 block" style={{ color: "#B9BBC4" }}>I am signing up as</label>
+          <label htmlFor="au-role" className="text-xs font-medium mb-1.5 block" style={{ color: labelColor }}>I am signing up as</label>
           <select
             id="au-role"
             value={values.role}
             onChange={(e) => setValues((v) => ({ ...v, role: e.target.value }))}
             className="w-full rounded-lg px-3 py-2 text-sm outline-none border bg-transparent"
-            style={{ borderColor: PALETTE.lineDark, color: PALETTE.porcelain }}
+            style={{ borderColor: fieldBorderColor, color: fieldTextColor }}
           >
             <option value="attendee" style={{ color: PALETTE.ink }}>Attendee — book tickets</option>
             <option value="organizer" style={{ color: PALETTE.ink }}>Organizer — create events</option>
@@ -623,7 +722,7 @@ function AuthForm({ mode, onSubmit, onSwitchMode }) {
         type="button"
         onClick={onSwitchMode}
         className="w-full mt-3 text-xs underline decoration-dotted text-center"
-        style={{ color: "#9DA0AC" }}
+        style={{ color: labelColor }}
       >
         {isRegister ? "Already have an account? Log in" : "New here? Create an account"}
       </button>
@@ -633,7 +732,7 @@ function AuthForm({ mode, onSubmit, onSwitchMode }) {
 
 /* ---------------------------------- Event card ---------------------------------- */
 const EventCard = React.memo(function EventCard({ event, dark, isFavorite, onToggleFavorite, onBook, booking }) {
-  const { title, category, date, venue, price, seatsLeft, seatsTotal, tone } = event;
+  const { title, category, date, venue, price, seatsLeft, seatsTotal, tone, image } = event;
   const pct = Math.round((seatsLeft / seatsTotal) * 100);
   const soldOut = seatsLeft <= 0;
   const accent = tone === "teal" ? PALETTE.teal : tone === "plum" ? PALETTE.plum : PALETTE.gold;
@@ -645,26 +744,37 @@ const EventCard = React.memo(function EventCard({ event, dark, isFavorite, onTog
       className="es-card-hover relative rounded-2xl overflow-hidden border shadow-sm flex flex-col"
       style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: dark ? PALETTE.inkSoft : "#fff" }}
     >
-      <div
-        className="h-28 w-full flex items-center justify-between px-5"
-        style={{ background: `linear-gradient(120deg, ${accent}, ${dark ? PALETTE.ink : PALETTE.inkSoft})` }}
-      >
-        <span
-          className="es-mono inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
-          style={{ backgroundColor: badgeBg, color: badgeFg }}
-        >
-          {category}
-        </span>
-        <Tooltip label={isFavorite ? "Remove from favorites" : "Save to favorites"}>
-          <button
-            aria-label={isFavorite ? `Remove ${title} from favorites` : `Save ${title} to favorites`}
-            aria-pressed={isFavorite}
-            onClick={() => onToggleFavorite(event)}
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
+      <div className="relative h-36 w-full overflow-hidden">
+        {image && (
+          <img
+            src={image}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        <div
+          className="absolute inset-0"
+          style={{ background: `linear-gradient(180deg, ${accent}33, ${PALETTE.ink}B3)` }}
+        />
+        <div className="relative h-full w-full flex items-start justify-between px-5 py-4">
+          <span
+            className="es-mono inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+            style={{ backgroundColor: badgeBg, color: badgeFg }}
           >
-            <Heart className="w-4 h-4" style={{ color: "#fff", fill: isFavorite ? "#fff" : "none" }} />
-          </button>
-        </Tooltip>
+            {category}
+          </span>
+          <Tooltip label={isFavorite ? "Remove from favorites" : "Save to favorites"}>
+            <button
+              aria-label={isFavorite ? `Remove ${title} from favorites` : `Save ${title} to favorites`}
+              aria-pressed={isFavorite}
+              onClick={() => onToggleFavorite(event)}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-black/30 hover:bg-black/45 transition-colors"
+            >
+              <Heart className="w-4 h-4" style={{ color: "#fff", fill: isFavorite ? "#fff" : "none" }} />
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="p-5 flex flex-col gap-3 flex-1">
@@ -709,7 +819,7 @@ function EventCardSkeleton({ dark }) {
   const vars = { "--sk-a": dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", "--sk-b": dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)" };
   return (
     <div className="rounded-2xl overflow-hidden border" style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: dark ? PALETTE.inkSoft : "#fff", ...vars }}>
-      <div className="h-28 w-full es-skeleton" />
+      <div className="h-36 w-full es-skeleton" />
       <div className="p-5 flex flex-col gap-3">
         <div className="h-5 w-3/4 es-skeleton rounded" />
         <div className="h-3 w-1/2 es-skeleton rounded" />
@@ -721,14 +831,35 @@ function EventCardSkeleton({ dark }) {
   );
 }
 
-function RoleCard({ icon: Icon, title, accent, points, dark }) {
+function RoleCard({ icon: Icon, title, accent, points, dark, photo }) {
+  const [photoOk, setPhotoOk] = useState(true);
   return (
     <div
       className="es-card-hover relative rounded-2xl p-6 border flex flex-col gap-4"
       style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, backgroundColor: dark ? PALETTE.inkSoft : "#fff" }}
     >
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent + "22" }}>
-        <Icon className="w-5 h-5" style={{ color: accent }} />
+      <div className="relative w-11 h-11 shrink-0">
+        {photoOk ? (
+          <img
+            src={photo}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            onError={() => setPhotoOk(false)}
+            className="w-11 h-11 rounded-xl object-cover"
+            style={{ border: `1px solid ${accent}55` }}
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent + "22" }}>
+            <Icon className="w-5 h-5" style={{ color: accent }} />
+          </div>
+        )}
+        <div
+          className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center border-2"
+          style={{ backgroundColor: accent, borderColor: dark ? PALETTE.inkSoft : "#fff", display: photoOk ? "flex" : "none" }}
+        >
+          <Icon className="w-2.5 h-2.5" style={{ color: "#fff" }} />
+        </div>
       </div>
       <h3 className="es-display text-lg font-semibold" style={{ color: dark ? PALETTE.porcelain : PALETTE.ink }}>{title}</h3>
       <ul className="flex flex-col gap-2 text-sm" style={{ color: dark ? "#B9BBC4" : PALETTE.slate }}>
@@ -746,6 +877,7 @@ function RoleCard({ icon: Icon, title, accent, points, dark }) {
 /* ---------------------------------- Main component ---------------------------------- */
 export default function EventSpherePro() {
   const { user, login, register, logout } = useAuth();
+  const reducedMotion = usePrefersReducedMotion();
 
   const [dark, setDark] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
@@ -920,23 +1052,23 @@ export default function EventSpherePro() {
       </a>
 
       {/* ---------------- NAV ---------------- */}
-      <header className="es-no-print sticky top-0 z-30 es-bg-ink border-b" style={{ borderColor: PALETTE.lineDark }}>
+      <header className="es-no-print sticky top-0 z-30 border-b transition-colors" style={{ backgroundColor: contentBgSoft, borderColor: contentLine }}>
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg es-bg-gold flex items-center justify-center">
               <Ticket className="w-4 h-4" style={{ color: PALETTE.ink }} />
             </div>
-            <span className="es-display text-lg font-semibold es-text-porcelain">
+            <span className="es-display text-lg font-semibold" style={{ color: contentText }}>
               EventSphere <span className="es-text-gold">Pro</span>
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: "#C7C9D1" }} aria-label="Primary">
-            <a href="#discover" className="hover:text-white transition-colors">Discover</a>
-            <a href="#organizers" className="hover:text-white transition-colors">For organizers</a>
-            <a href="#analytics" className="hover:text-white transition-colors">Analytics</a>
-            <a href="#tickets" className="hover:text-white transition-colors">Ticketing</a>
-            <a href="#gallery" className="hover:text-white transition-colors">Gallery</a>
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: contentMuted }} aria-label="Primary">
+            <a href="#discover" className="hover:opacity-70 transition-opacity">Discover</a>
+            <a href="#organizers" className="hover:opacity-70 transition-opacity">For organizers</a>
+            <a href="#analytics" className="hover:opacity-70 transition-opacity">Analytics</a>
+            <a href="#tickets" className="hover:opacity-70 transition-opacity">Ticketing</a>
+            <a href="#gallery" className="hover:opacity-70 transition-opacity">Gallery</a>
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -945,7 +1077,7 @@ export default function EventSpherePro() {
                 aria-label="Show keyboard shortcuts"
                 onClick={() => setShortcutsOpen(true)}
                 className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors hidden sm:flex"
-                style={{ borderColor: PALETTE.lineDark, color: "#C7C9D1" }}
+                style={{ borderColor: contentLine, color: contentMuted }}
               >
                 <Keyboard className="w-4 h-4" />
               </button>
@@ -955,7 +1087,7 @@ export default function EventSpherePro() {
                 aria-label="Toggle color theme"
                 onClick={() => setDark((d) => !d)}
                 className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors"
-                style={{ borderColor: PALETTE.lineDark, color: "#C7C9D1" }}
+                style={{ borderColor: contentLine, color: contentMuted }}
               >
                 {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
@@ -971,7 +1103,7 @@ export default function EventSpherePro() {
                   </button>
                 )}
                 <Tooltip label={`Signed in as ${user.name} (${user.role})`}>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border" style={{ borderColor: PALETTE.lineDark, color: "#C7C9D1" }}>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border" style={{ borderColor: contentLine, color: contentMuted }}>
                     {user.name}
                   </span>
                 </Tooltip>
@@ -980,7 +1112,7 @@ export default function EventSpherePro() {
                     aria-label="Log out"
                     onClick={handleLogout}
                     className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors"
-                    style={{ borderColor: PALETTE.lineDark, color: "#C7C9D1" }}
+                    style={{ borderColor: contentLine, color: contentMuted }}
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
@@ -996,7 +1128,8 @@ export default function EventSpherePro() {
             )}
             <button
               aria-label={navOpen ? "Close menu" : "Open menu"}
-              className="md:hidden w-9 h-9 flex items-center justify-center text-white"
+              className="md:hidden w-9 h-9 flex items-center justify-center"
+              style={{ color: contentText }}
               onClick={() => setNavOpen((n) => !n)}
             >
               {navOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -1004,7 +1137,7 @@ export default function EventSpherePro() {
           </div>
         </div>
         {navOpen && (
-          <div className="md:hidden flex flex-col gap-4 px-5 pb-5 text-sm font-medium" style={{ color: "#C7C9D1" }}>
+          <div className="md:hidden flex flex-col gap-4 px-5 pb-5 text-sm font-medium" style={{ color: contentMuted }}>
             <a href="#discover">Discover</a>
             <a href="#organizers">For organizers</a>
             <a href="#analytics">Analytics</a>
@@ -1041,14 +1174,15 @@ export default function EventSpherePro() {
 
       <main id="es-main">
         {/* ---------------- HERO ---------------- */}
-        <section className="es-bg-ink pt-16 pb-20 px-5 sm:px-8 relative overflow-hidden">
-          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+        <section className="pt-16 pb-20 px-5 sm:px-8 relative overflow-hidden transition-colors" style={{ backgroundColor: PALETTE.ink }}>
+          <HeroVideo reducedMotion={reducedMotion} />
+          <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
             <Reveal>
               <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-gold">Event infrastructure, not just a listing page</span>
-              <h1 className="es-display text-4xl sm:text-5xl font-bold leading-tight mt-4 es-text-porcelain">
+              <h1 className="es-display text-4xl sm:text-5xl font-bold leading-tight mt-4" style={{ color: PALETTE.porcelain }}>
                 Sell the seat.<br />Scan the ticket.<br /><span className="es-text-gold">Own the data.</span>
               </h1>
-              <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: "#AEB1BC" }}>
+              <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: "rgba(241,241,244,0.78)" }}>
                 EventSphere Pro gives organizers a real backend for events — bookings, payments,
                 QR check-in, and live revenue analytics — instead of a form bolted onto a calendar.
               </p>
@@ -1062,7 +1196,7 @@ export default function EventSpherePro() {
                 <a
                   href="#tickets"
                   className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-3 rounded-full border"
-                  style={{ borderColor: PALETTE.lineDark, color: PALETTE.porcelain }}
+                  style={{ borderColor: "rgba(241,241,244,0.3)", color: PALETTE.porcelain }}
                 >
                   <ScanLine className="w-4 h-4" /> See the QR flow
                 </a>
@@ -1107,7 +1241,7 @@ export default function EventSpherePro() {
                   <button
                     onClick={() => window.print()}
                     className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full border"
-                    style={{ borderColor: PALETTE.lineDark, color: PALETTE.porcelain }}
+                    style={{ borderColor: "rgba(241,241,244,0.3)", color: PALETTE.porcelain }}
                   >
                     <Printer className="w-4 h-4" /> Print ticket
                   </button>
@@ -1149,11 +1283,11 @@ export default function EventSpherePro() {
               </p>
             </Reveal>
             <div className="grid md:grid-cols-3 gap-6">
-              <Reveal><RoleCard icon={UserCog} title="Admin" accent={PALETTE.plum} dark={dark}
+              <Reveal><RoleCard icon={UserCog} title="Admin" accent={PALETTE.plum} dark={dark} photo={ROLE_PHOTOS.Admin}
                 points={["Approve and verify organizers", "Manage categories platform-wide", "Monitor usage across every event", "Full platform analytics"]} /></Reveal>
-              <Reveal><RoleCard icon={CalendarCheck2} title="Organizer" accent={PALETTE.gold} dark={dark}
+              <Reveal><RoleCard icon={CalendarCheck2} title="Organizer" accent={PALETTE.gold} dark={dark} photo={ROLE_PHOTOS.Organizer}
                 points={["Publish events with tiered ticketing", "Track bookings as they land", "Scan QR tickets at the door", "Revenue analytics per event"]} /></Reveal>
-              <Reveal><RoleCard icon={Users} title="Attendee" accent={PALETTE.teal} dark={dark}
+              <Reveal><RoleCard icon={Users} title="Attendee" accent={PALETTE.teal} dark={dark} photo={ROLE_PHOTOS.Attendee}
                 points={["Search and filter by date, price, city", "Pay securely, get a QR ticket instantly", "Manage bookings in one place", "Leave a review after the event"]} /></Reveal>
             </div>
           </div>
@@ -1215,6 +1349,7 @@ export default function EventSpherePro() {
             <ErrorBoundary
               textColor={contentText}
               mutedColor={contentMuted}
+              lineColor={contentLine}
               onReset={() => setCrashDemo(false)}
             >
               <CrashDemo crash={crashDemo} />
@@ -1264,12 +1399,12 @@ export default function EventSpherePro() {
         </section>
 
         {/* ---------------- ANALYTICS ---------------- */}
-        <section id="analytics" className="es-bg-ink px-5 sm:px-8 py-20">
+        <section id="analytics" className="px-5 sm:px-8 py-20 transition-colors" style={{ backgroundColor: contentBg }}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
             <Reveal>
               <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-teal">For organizers</span>
-              <h2 className="es-display text-3xl font-bold mt-3 es-text-porcelain">Know what sold, and why</h2>
-              <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: "#AEB1BC" }}>
+              <h2 className="es-display text-3xl font-bold mt-3" style={{ color: contentText }}>Know what sold, and why</h2>
+              <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: contentMuted }}>
                 Every booking, refund, and check-in rolls up into a live dashboard —
                 no spreadsheet exports required.
               </p>
@@ -1283,7 +1418,7 @@ export default function EventSpherePro() {
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: PALETTE.teal + "22" }}>
                       <Icon className="w-4 h-4 es-text-teal" />
                     </div>
-                    <p className="text-sm mt-1.5" style={{ color: "#C7C9D1" }}>{text}</p>
+                    <p className="text-sm mt-1.5" style={{ color: contentMuted }}>{text}</p>
                   </div>
                 ))}
               </div>
@@ -1330,6 +1465,7 @@ export default function EventSpherePro() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Ticket valid — attendance marked
                 </div>
               </div>
+              <CheckinPhoto dark={dark} />
             </Reveal>
             <Reveal className="order-1 lg:order-2">
               <span className="es-mono text-xs tracking-[0.2em] uppercase es-text-plum">At the door</span>
@@ -1363,10 +1499,20 @@ export default function EventSpherePro() {
                   key={g.caption}
                   onClick={() => setLightboxIndex(i)}
                   aria-label={`Open photo: ${g.caption}`}
-                  className="es-card-hover relative aspect-square rounded-xl overflow-hidden flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+                  className="es-card-hover group relative aspect-square rounded-xl overflow-hidden"
                 >
-                  <ImageIcon className="w-6 h-6 text-white/70" />
+                  <img
+                    src={g.photo}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = g.img; }}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0 opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <span className="absolute bottom-2 left-2 right-2 text-[11px] font-medium text-white/90 line-clamp-2 text-left">
+                    {g.caption}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1391,16 +1537,16 @@ export default function EventSpherePro() {
       </main>
 
       {/* ---------------- FOOTER ---------------- */}
-      <footer className="es-no-print es-bg-ink px-5 sm:px-8 pt-12 pb-8 es-tear" style={{ borderColor: PALETTE.lineDark }}>
+      <footer className="es-no-print px-5 sm:px-8 pt-12 pb-8 es-tear transition-colors" style={{ backgroundColor: contentBg, borderColor: contentLine }}>
         <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-md es-bg-gold flex items-center justify-center">
                 <Ticket className="w-4 h-4 es-text-ink" />
               </div>
-              <span className="es-display font-semibold es-text-porcelain">EventSphere Pro</span>
+              <span className="es-display font-semibold" style={{ color: contentText }}>EventSphere Pro</span>
             </div>
-            <p className="text-sm" style={{ color: "#8B8E99" }}>Event infrastructure for organizers who sell real tickets.</p>
+            <p className="text-sm" style={{ color: contentMuted }}>Event infrastructure for organizers who sell real tickets.</p>
           </div>
           {[
             ["Product", ["Discovery", "Ticketing", "Analytics", "QR check-in"]],
@@ -1408,14 +1554,14 @@ export default function EventSpherePro() {
             ["Company", ["About", "Support", "Status"]],
           ].map(([heading, links]) => (
             <div key={heading}>
-              <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#8B8E99" }}>{heading}</p>
-              <ul className="flex flex-col gap-2 text-sm" style={{ color: "#C7C9D1" }}>
-                {links.map((l) => <li key={l}><a href="#" className="hover:text-white transition-colors">{l}</a></li>)}
+              <p className="text-xs uppercase tracking-wide mb-3" style={{ color: contentMuted }}>{heading}</p>
+              <ul className="flex flex-col gap-2 text-sm" style={{ color: contentText }}>
+                {links.map((l) => <li key={l}><a href="#" className="hover:opacity-70 transition-opacity">{l}</a></li>)}
               </ul>
             </div>
           ))}
         </div>
-        <div className="max-w-6xl mx-auto pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ borderColor: PALETTE.lineDark, color: "#6E717D" }}>
+        <div className="max-w-6xl mx-auto pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ borderColor: contentLine, color: contentMuted }}>
           <span>© 2026 EventSphere Pro. Built for the DevHatch Labs portfolio.</span>
           <span className="es-mono">ES-10293 · AI Summit 2026</span>
         </div>
@@ -1426,9 +1572,11 @@ export default function EventSpherePro() {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         title={authMode === "register" ? "Create your account" : "Log in"}
+        dark={dark}
       >
         <AuthForm
           mode={authMode}
+          dark={dark}
           onSwitchMode={() => setAuthMode((m) => (m === "register" ? "login" : "register"))}
           onSubmit={async (values) => {
             if (authMode === "register") {
@@ -1444,17 +1592,17 @@ export default function EventSpherePro() {
       </Modal>
 
       {/* ---------------- CREATE EVENT MODAL ---------------- */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create a new event">
-        <CreateEventForm categories={categories} onSubmit={handleCreateEvent} />
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create a new event" dark={dark}>
+        <CreateEventForm categories={categories} onSubmit={handleCreateEvent} dark={dark} />
       </Modal>
 
       {/* ---------------- SHORTCUTS MODAL ---------------- */}
-      <Modal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} title="Keyboard shortcuts">
+      <Modal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} title="Keyboard shortcuts" dark={dark}>
         <div className="flex flex-col gap-3">
           {SHORTCUTS.map(([key, desc]) => (
             <div key={key} className="flex items-center justify-between text-sm">
-              <span style={{ color: "#C7C9D1" }}>{desc}</span>
-              <kbd className="es-mono text-xs px-2 py-1 rounded-md border" style={{ borderColor: PALETTE.lineDark, color: PALETTE.gold }}>{key}</kbd>
+              <span style={{ color: dark ? "#C7C9D1" : PALETTE.slate }}>{desc}</span>
+              <kbd className="es-mono text-xs px-2 py-1 rounded-md border" style={{ borderColor: dark ? PALETTE.lineDark : PALETTE.line, color: dark ? PALETTE.gold : "#7A5A17" }}>{key}</kbd>
             </div>
           ))}
         </div>
@@ -1472,11 +1620,13 @@ export default function EventSpherePro() {
             >
               <X className="w-6 h-6" />
             </button>
-            <div
-              className="rounded-2xl overflow-hidden aspect-video flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${GALLERY[lightboxIndex].from}, ${GALLERY[lightboxIndex].to})` }}
-            >
-              <ImageIcon className="w-10 h-10 text-white/70" />
+            <div className="rounded-2xl overflow-hidden aspect-video">
+              <img
+                src={GALLERY[lightboxIndex].photo}
+                alt={GALLERY[lightboxIndex].caption}
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = GALLERY[lightboxIndex].img; }}
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex items-center justify-between mt-3">
               <button
